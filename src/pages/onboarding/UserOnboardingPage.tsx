@@ -6,6 +6,10 @@ import { MapPin, Camera } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useDropzone } from 'react-dropzone';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const userProfileSchema = z.object({
   phone: z.string().min(10, 'Invalid phone number'),
@@ -26,20 +30,73 @@ const interests = [
 ];
 
 export function UserOnboardingPage() {
-  const { register, handleSubmit, formState: { errors } } = useForm<UserProfileData>({
+  const { user, setUser } = useAuthStore();
+  const navigate = useNavigate();
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<UserProfileData>({
     resolver: zodResolver(userProfileSchema),
   });
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: { 'image/*': [] },
     maxFiles: 1,
-    onDrop: (acceptedFiles) => {
-      // Handle file upload
+    onDrop: async (acceptedFiles) => {
+      if (acceptedFiles.length > 0 && user) {
+        const file = acceptedFiles[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+        const filePath = `profile-images/${fileName}`;
+
+        try {
+          const { error: uploadError } = await supabase.storage
+            .from('profiles')
+            .upload(filePath, file);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('profiles')
+            .getPublicUrl(filePath);
+
+          await supabase
+            .from('users')
+            .update({ profile_image_url: publicUrl })
+            .eq('id', user.id);
+
+        } catch (error) {
+          toast.error('Failed to upload profile image');
+        }
+      }
     },
   });
 
-  const onSubmit = (data: UserProfileData) => {
-    // Handle form submission
+  const onSubmit = async (data: UserProfileData) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          phone: data.phone,
+          location: data.location,
+          bio: data.bio || null,
+          interests: data.interests,
+          profile_complete: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setUser({
+        ...user,
+        profileComplete: true,
+      });
+
+      toast.success('Profile completed successfully!');
+      navigate('/');
+    } catch (error) {
+      toast.error('Failed to update profile');
+    }
   };
 
   return (
@@ -91,7 +148,7 @@ export function UserOnboardingPage() {
           )}
         </div>
 
-        <Button type="submit" className="w-full">
+        <Button type="submit" loading={isSubmitting} className="w-full">
           Complete Profile
         </Button>
       </form>

@@ -25,15 +25,22 @@ export function useAuth() {
           .eq('id', data.user.id)
           .single();
 
-        setUser({
-          id: data.user.id,
-          email: data.user.email!,
-          name: profile?.name || '',
-          role: profile?.role || 'user',
-          profileComplete: profile?.profile_complete || false,
-        });
+        if (profile) {
+          setUser({
+            id: data.user.id,
+            email: data.user.email!,
+            name: profile.name || '',
+            role: profile.role || 'user',
+            profileComplete: profile.profile_complete || false,
+          });
 
-        navigate(profile?.profile_complete ? '/' : `/onboarding/${profile?.role}`);
+          // Redirect based on profile completion status
+          if (!profile.profile_complete) {
+            navigate(`/onboarding/${profile.role}`);
+          } else {
+            navigate('/');
+          }
+        }
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to sign in');

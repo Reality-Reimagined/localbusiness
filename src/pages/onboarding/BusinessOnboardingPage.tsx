@@ -6,6 +6,10 @@ import { MapPin, Clock, Camera, Plus } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useDropzone } from 'react-dropzone';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const businessProfileSchema = z.object({
   businessName: z.string().min(2, 'Business name is required'),
@@ -24,9 +28,9 @@ const businessProfileSchema = z.object({
     sunday: z.string(),
   }),
   services: z.array(z.object({
-    name: z.string(),
-    price: z.number().min(0),
-    duration: z.string(),
+    name: z.string().min(1, 'Service name is required'),
+    price: z.number().min(0, 'Price must be positive'),
+    duration: z.string().min(1, 'Duration is required'),
   })).min(1, 'Add at least one service'),
 });
 
@@ -42,16 +46,60 @@ const categories = [
 ];
 
 export function BusinessOnboardingPage() {
+  const { user, setUser } = useAuthStore();
+  const navigate = useNavigate();
   const [services, setServices] = useState([{ name: '', price: 0, duration: '' }]);
-  const { register, handleSubmit, formState: { errors } } = useForm<BusinessProfileData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<BusinessProfileData>({
     resolver: zodResolver(businessProfileSchema),
+    defaultValues: {
+      hours: {
+        monday: '9:00 AM - 5:00 PM',
+        tuesday: '9:00 AM - 5:00 PM',
+        wednesday: '9:00 AM - 5:00 PM',
+        thursday: '9:00 AM - 5:00 PM',
+        friday: '9:00 AM - 5:00 PM',
+        saturday: '10:00 AM - 3:00 PM',
+        sunday: 'Closed',
+      },
+    },
   });
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: { 'image/*': [] },
     maxFiles: 5,
-    onDrop: (acceptedFiles) => {
-      // Handle file upload
+    onDrop: async (acceptedFiles) => {
+      if (!user) return;
+
+      try {
+        const uploadPromises = acceptedFiles.map(async (file) => {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+          const filePath = `business-images/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('businesses')
+            .upload(filePath, file);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('businesses')
+            .getPublicUrl(filePath);
+
+          return publicUrl;
+        });
+
+        const imageUrls = await Promise.all(uploadPromises);
+
+        await supabase
+          .from('business_profiles')
+          .update({ images: imageUrls })
+          .eq('user_id', user.id);
+
+        toast.success('Images uploaded successfully');
+      } catch (error) {
+        toast.error('Failed to upload images');
+      }
     },
   });
 
@@ -59,8 +107,70 @@ export function BusinessOnboardingPage() {
     setServices([...services, { name: '', price: 0, duration: '' }]);
   };
 
-  const onSubmit = (data: BusinessProfileData) => {
-    // Handle form submission
+  const onSubmit = async (data: BusinessProfileData) => {
+    if (!user) return;
+
+    try {
+      // Create business profile
+      const { error: businessError } = await supabase
+        .from('business_profiles')
+        .insert({
+          user_id: user.id,
+          business_name: data.businessName,
+          description: data.description,
+          category: data.category,
+          address: data.address,
+          website: data.website || null,
+          hours: data.hours,
+        });
+
+      if (businessError) throw businessError;
+
+      // Get the created business profile
+      const { data: businessProfile } = await supabase
+        .from('business_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!businessProfile) throw new Error('Failed to create business profile');
+
+      // Create services
+      const servicesData = data.services.map(service => ({
+        business_id: businessProfile.id,
+        name: service.name,
+        price: service.price,
+        duration: service.duration,
+      }));
+
+      const { error: servicesError } = await supabase
+        .from('services')
+        .insert(servicesData);
+
+      if (servicesError) throw servicesError;
+
+      // Update user profile completion status
+      const { error: userError } = await supabase
+        .from('users')
+        .update({
+          profile_complete: true,
+          phone: data.phone,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      if (userError) throw userError;
+
+      setUser({
+        ...user,
+        profileComplete: true,
+      });
+
+      toast.success('Business profile completed successfully!');
+      navigate('/');
+    } catch (error) {
+      toast.error('Failed to create business profile');
+    }
   };
 
   return (
@@ -177,7 +287,9 @@ export function BusinessOnboardingPage() {
                     <Input
                       label="Price"
                       type="number"
-                      {...register(`services.${index}.price`)}
+                      {...register(`services.${index}.price`, {
+                        valueAsNumber: true,
+                      })}
                     />
                     <Input
                       label="Duration"
@@ -189,7 +301,7 @@ export function BusinessOnboardingPage() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full">
+            <Button type="submit" loading={isSubmitting} className="w-full">
               Complete Business Profile
             </Button>
           </form>

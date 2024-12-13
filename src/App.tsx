@@ -38,13 +38,15 @@ function App() {
             .eq('id', session.user.id)
             .single();
 
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: profile?.name || '',
-            role: profile?.role || 'user',
-            profileComplete: profile?.profile_complete || false,
-          });
+          if (profile) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email!,
+              name: profile.name || '',
+              role: profile.role || 'user',
+              profileComplete: profile.profile_complete || false,
+            });
+          }
         } else {
           setUser(null);
         }
@@ -61,27 +63,18 @@ function App() {
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={
-              <AuthGuard requireOnboarding={true}>
-                <HomePage />
-              </AuthGuard>
-            } />
-            <Route path="/login" element={
-              <AuthGuard requireAuth={false}>
-                <LoginPage />
-              </AuthGuard>
-            } />
-            <Route path="/register" element={
-              <AuthGuard requireAuth={false}>
-                <RegisterPage />
-              </AuthGuard>
-            } />
+            {/* Public routes */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            {/* Protected routes */}
             <Route path="/profile" element={
               <AuthGuard>
                 <ProfilePage />
               </AuthGuard>
             } />
-            <Route path="/search" element={<SearchPage />} />
             <Route path="/messages" element={
               <AuthGuard>
                 <MessagesPage />
@@ -104,4 +97,5 @@ function App() {
     </QueryClientProvider>
   );
 }
+
 export default App;

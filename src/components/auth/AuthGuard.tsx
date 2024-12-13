@@ -19,10 +19,9 @@ export function AuthGuard({
 
   useEffect(() => {
     if (!user && requireAuth) {
-      // Redirect to login if not authenticated
+      // Save the attempted URL
       navigate('/login', { state: { from: location } });
     } else if (user && !user.profileComplete && requireOnboarding) {
-      // Redirect to onboarding if profile is incomplete
       navigate(`/onboarding/${user.role}`);
     }
   }, [user, navigate, location, requireAuth, requireOnboarding]);
