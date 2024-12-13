@@ -14,6 +14,8 @@ import { UserOnboardingPage } from './pages/onboarding/UserOnboardingPage';
 import { BusinessOnboardingPage } from './pages/onboarding/BusinessOnboardingPage';
 import { SearchPage } from './pages/SearchPage';
 import { MessagesPage } from './pages/MessagesPage';
+import { JobsPage } from './pages/jobs/JobsPage';
+import { SettingsPage } from './pages/settings/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,7 +30,6 @@ function App() {
   const { setUser } = useAuthStore();
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
@@ -75,9 +76,19 @@ function App() {
                 <ProfilePage />
               </AuthGuard>
             } />
+            <Route path="/settings" element={
+              <AuthGuard>
+                <SettingsPage />
+              </AuthGuard>
+            } />
             <Route path="/messages" element={
               <AuthGuard>
                 <MessagesPage />
+              </AuthGuard>
+            } />
+            <Route path="/jobs" element={
+              <AuthGuard>
+                <JobsPage />
               </AuthGuard>
             } />
             <Route path="/onboarding/user" element={

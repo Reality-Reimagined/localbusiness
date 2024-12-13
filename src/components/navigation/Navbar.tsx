@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Briefcase } from 'lucide-react';
+import { Search, Briefcase, MessageSquare } from 'lucide-react';
 import { UserMenu } from './UserMenu';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../ui/Button';
@@ -23,6 +23,17 @@ export function Navbar() {
             <Link to="/search" className="text-gray-600 hover:text-gray-900">
               <Search className="h-6 w-6" />
             </Link>
+            
+            {user && (
+              <>
+                <Link to="/jobs" className="text-gray-600 hover:text-gray-900">
+                  Jobs
+                </Link>
+                <Link to="/messages" className="text-gray-600 hover:text-gray-900">
+                  <MessageSquare className="h-6 w-6" />
+                </Link>
+              </>
+            )}
             
             {user ? (
               <UserMenu />

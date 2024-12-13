@@ -10,11 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.0",
     "@hookform/resolvers": "^3.3.4",
     "@supabase/supabase-js": "^2.39.8",
     "axios": "^1.6.7",
     "clsx": "^2.1.0",
     "date-fns": "^3.5.0",
+    "headlessui": "^0.0.0",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

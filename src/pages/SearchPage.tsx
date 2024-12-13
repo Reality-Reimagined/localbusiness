@@ -2,6 +2,7 @@ import React from 'react';
 import { SearchBar } from '../components/search/SearchBar';
 import { FilterBar } from '../components/search/FilterBar';
 import { BusinessCard } from '../components/BusinessCard';
+import { ServicesList } from '../components/services/ServicesList';
 import { useSearch } from '../hooks/useSearch';
 
 const categories = [
@@ -32,7 +33,7 @@ export function SearchPage() {
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <SearchBar
             onSearch={setSearchQuery}
-            placeholder="Search businesses..."
+            placeholder="Search businesses or services..."
           />
           <FilterBar
             categories={categories}
@@ -58,7 +59,10 @@ export function SearchPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {results.map((business) => (
-              <BusinessCard key={business.id} business={business} />
+              <div key={business.id} className="space-y-4">
+                <BusinessCard business={business} />
+                <ServicesList businessId={business.id} />
+              </div>
             ))}
           </div>
         )}
