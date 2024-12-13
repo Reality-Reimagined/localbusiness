@@ -31,7 +31,7 @@ export function useJobs() {
   });
 
   const createJob = useMutation(
-    async (jobData: Omit<JobRequest, 'id' | 'created_at'>) => {
+    async (jobData: Omit<JobRequest, 'id' | 'created_at'> & { user_id: string }) => {
       const { data, error } = await supabase
         .from('jobs')
         .insert([
@@ -50,19 +50,29 @@ export function useJobs() {
         queryClient.invalidateQueries('jobs');
         toast.success('Job posted successfully');
       },
-      onError: () => {
-        toast.error('Failed to post job');
+      onError: (error: any) => {
+        console.error('Job creation error:', error);
+        toast.error(error.message || 'Failed to post job');
       },
     }
   );
 
   const submitBid = useMutation(
     async ({ jobId, amount, proposal }: { jobId: string; amount: number; proposal: string }) => {
+      // First get the business profile ID for the current user
+      const { data: businessProfile, error: profileError } = await supabase
+        .from('business_profiles')
+        .select('id')
+        .single();
+
+      if (profileError) throw profileError;
+
       const { data, error } = await supabase
         .from('job_bids')
         .insert([
           {
             job_id: jobId,
+            business_id: businessProfile.id,
             amount,
             proposal,
             status: 'pending',
@@ -76,10 +86,11 @@ export function useJobs() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('jobs');
-        toast.success('Bid submitted successfully');
+        toast.success('Proposal submitted successfully');
       },
-      onError: () => {
-        toast.error('Failed to submit bid');
+      onError: (error: any) => {
+        console.error('Bid submission error:', error);
+        toast.error(error.message || 'Failed to submit proposal');
       },
     }
   );
